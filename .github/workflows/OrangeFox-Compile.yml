@@ -20,7 +20,7 @@ on:
       DEVICE_TREE:
         description: 'OrangeFox Device Tree'
         required: true
-        default: 'https://github.com/nepntt9/android_device_samsung_m14'
+        default: 'https://github.com/nepntt9/0android_device_samsung_m14x.git'
       DEVICE_TREE_BRANCH:
         description: 'OrangeFox Device Tree Branch'
         required: true
