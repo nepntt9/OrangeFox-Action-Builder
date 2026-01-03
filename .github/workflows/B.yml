@@ -87,9 +87,8 @@ jobs:
         git clone ${{ inputs.DEVICE_TREE }} -b ${{ inputs.DEVICE_TREE_BRANCH }} ./${{ inputs.DEVICE_PATH }}
         cd ${{ inputs.DEVICE_PATH }}
         echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+echo "Setting FOX_VERSION"	
 
-		          echo "Setting FOX_VERSION"
-          export FOX_VERSION="R12.1"
           echo "Setting FOX_BUILD_VARIANT"
           export FOX_BUILD_VARIANT="m14x"
           echo "Setting FOX_MAINTAINER_PATCH_VERSION"
