@@ -18,9 +18,8 @@ jobs:
       run: |
         sudo apt update -qq
         sudo apt install -y git python3 bc bison flex libssl-dev make ccache curl
-        
-    - name: **REPO + GIT AUTH FIX**
-      run: |
+        - name: **REPO + GIT AUTH FIX**
+        run: |
         # Official repo launcher
         mkdir -p ~/.bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
@@ -32,9 +31,8 @@ jobs:
         export PATH="${HOME}/.bin:${PATH}"
         echo "PATH=${HOME}/.bin:${PATH}" >> $GITHUB_PATH
         repo --version
-
-    - name: **ORANGEFOX-12.1** (Stable A12 - No Auth Issues)
-      run: |
+        - name: **ORANGEFOX-12.1** (Stable A12 - No Auth Issues)
+        run: |
         mkdir ~/batik_a12 && cd ~/batik_a12
         # Switch to OrangeFox (public, no GitLab/minimal auth problems)
         git clone https://gitlab.com/OrangeFox/sync.git -b master --depth=1
@@ -45,9 +43,8 @@ jobs:
       run: |
         cd ~/batik_a12/fox_12.1
         git clone ${{ inputs.DEVICE_TREE }} -b ${{ inputs.DEVICE_BRANCH }} device/samsung/m14x
-
-    - name: **Use Your Tree AS-IS** (No MK mods)
-      run: |
+        - name: **Use Your Tree AS-IS** (No MK mods)
+        run: |
         cd ~/batik_a12/fox_12.1/device/samsung/m14x
         echo "✅ Existing tree: $(ls *.mk)"
 
