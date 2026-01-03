@@ -93,9 +93,6 @@ jobs:
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}
         set +e
         source build/envsetup.sh
-          export FOX_VERSION="R12.1"
-          export FOX_BUILD_VARIANT="m14x"
-          export FOX_MAINTAINER_PATCH_VERSION="1"
           export SHRP_DEVICE="m14x"
           export SHRP_PATH="device/samsung/m14x"
           export SHRP_MAINTAINER="YourName"
