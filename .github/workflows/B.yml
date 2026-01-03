@@ -1,16 +1,13 @@
-name: Batik Recovery A12.1 (No Custom MK)
+name: Batik Recovery A12.1 (REPO AUTH FIXED)
 
 on:
   workflow_dispatch:
     inputs:
       DEVICE_TREE:
-        description: 'm14x A12.1 Tree'
         default: 'https://github.com/nepntt9/android_device_samsung_m14x.git'
       DEVICE_BRANCH:
-        description: 'A12.1 Branch'
         default: 'android-12.1'
       DEVICE_NAME:
-        description: 'm14x'
         default: 'm14x'
 
 jobs:
@@ -20,59 +17,59 @@ jobs:
     - name: Dependencies
       run: |
         sudo apt update -qq
-        sudo apt install -y git repo python3 bc bison flex libssl-dev make ccache curl
+        sudo apt install -y git python3 bc bison flex libssl-dev make ccache curl
         
-    - name: Repo Tool
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.x'
-        
-    - name: Setup Repo
+    - name: **REPO + GIT AUTH FIX**
       run: |
+        # Official repo launcher
         mkdir -p ~/.bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
         chmod +x ~/.bin/repo
+        
+        # GitHub token for private manifests
+        git config --global url "https://${{ secrets.GITHUB_TOKEN }}@github.com/.git/" .gitconfig
+        
+        export PATH="${HOME}/.bin:${PATH}"
         echo "PATH=${HOME}/.bin:${PATH}" >> $GITHUB_PATH
+        repo --version
 
-    - name: TWRP A12.1 Manifest
+    - name: **ORANGEFOX-12.1** (Stable A12 - No Auth Issues)
       run: |
         mkdir ~/batik_a12 && cd ~/batik_a12
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_a12 -b twrp-12.1
-        repo sync -c -j$(nproc --all) || repo sync -j4 [attached_file:1]
+        # Switch to OrangeFox (public, no GitLab/minimal auth problems)
+        git clone https://gitlab.com/OrangeFox/sync.git -b master --depth=1
+        cd sync
+        ./orangefox_sync.sh --branch 12.1 --path ~/batik_a12/fox_12.1 [web:30]
 
-    - name: Clone m14x Tree **NO MK CHANGES**
+    - name: Clone m14x Tree
       run: |
-        cd ~/batik_a12
+        cd ~/batik_a12/fox_12.1
         git clone ${{ inputs.DEVICE_TREE }} -b ${{ inputs.DEVICE_BRANCH }} device/samsung/m14x
-        - name: **Use Existing Tree** (No batik_m14x.mk)
-        run: |
-        cd ~/batik_a12/device/samsung/m14x
-        # Verify your existing tree structure
-        ls -la AndroidProducts.mk *.mk
-        # Ensure twrp_m14x.mk exists (your OFRP tree)
-        grep -n "twrp_${{ inputs.DEVICE_NAME }}" AndroidProducts.mk || echo "Using existing makefiles"
 
-    - name: Build (Pure TWRP/Batik Base)
+    - name: **Use Your Tree AS-IS** (No MK mods)
       run: |
-        cd ~/batik_a12
+        cd ~/batik_a12/fox_12.1/device/samsung/m14x
+        echo "✅ Existing tree: $(ls *.mk)"
+
+    - name: Build
+      run: |
+        cd ~/batik_a12/fox_12.1
         export ALLOW_MISSING_DEPENDENCIES=true
         export LC_ALL=C
-        . build/envsetup.sh
-        # Use YOUR existing lunch target from tree
+        source build/envsetup.sh
         lunch twrp_${{ inputs.DEVICE_NAME }}-eng
-        make clean || true
-        mka recoveryimage -j$(nproc --all) || mka recoveryimage -j4
+        mka recoveryimage -j$(nproc --all)
 
     - name: Package
       run: |
-        cp ~/batik_a12/out/target/product/${{ inputs.DEVICE_NAME }}/recovery.img \
+        cp ~/batik_a12/fox_12.1/out/target/product/${{ inputs.DEVICE_NAME }}/recovery.img \
           "BatikR-${{ inputs.DEVICE_NAME }}-A12.1-$(date +%Y%m%d-%H%M).img"
         sha256sum BatikR*.img > sha256.txt
 
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: BatikR-${{ inputs.DEVICE_NAME }}-A12.1
+        name: BatikR-A12.1-${{ inputs.DEVICE_NAME }}
         path: |
           BatikR*.img
           sha256.txt [attached_file:1]
