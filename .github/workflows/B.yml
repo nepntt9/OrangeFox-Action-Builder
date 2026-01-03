@@ -44,9 +44,8 @@ jobs:
       run: |
         cd ~/batik_a12
         git clone ${{ inputs.DEVICE_TREE }} -b ${{ inputs.DEVICE_BRANCH }} device/samsung/m14x
-
-    - name: **Use Existing Tree** (No batik_m14x.mk)
-      run: |
+        - name: **Use Existing Tree** (No batik_m14x.mk)
+        run: |
         cd ~/batik_a12/device/samsung/m14x
         # Verify your existing tree structure
         ls -la AndroidProducts.mk *.mk
