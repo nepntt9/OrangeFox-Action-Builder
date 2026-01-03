@@ -1,5 +1,6 @@
-   name:OrangeFox - Build	on:	workflow_dispatch:
-    inputs:
+   name:OrangeFox - Build	on:
+      workflow_dispatch:
+       inputs:
       MANIFEST_BRANCH:
         description: 'OrangeFox Manifest Branch'
         required: true
