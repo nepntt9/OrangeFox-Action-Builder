@@ -1,32 +1,28 @@
-name: OrangeFox Stable Build (m14x)
+name: OrangeFox Stable Build (Fixed) - m14x
 
-# Credits to:
-# https://github.com/TeamWin [attached_file:1]
-# https://gitlab.com/OrangeFox 
-# https://github.com/azwhikaru [attached_file:2] for Recovery Builder Template
-# And all Contributors in every repositories I used
+# Credits: TeamWin[attached_file:1] | OrangeFox | azwhikaru[attached_file:2]
 
 on:
   workflow_dispatch:
     inputs:
       MANIFEST_BRANCH:
-        description: 'OrangeFox Stable Branch' 
+        description: 'OrangeFox Branch'
         required: true
         default: '12.1'
         type: choice
         options:
-        - 12.1  # Stable A12+ decryption
-        - 11.3  # Latest stable R11.3
+        - 12.1
+        - 11.3
       DEVICE_TREE:
-        description: 'Device Tree Repo'
+        description: 'Device Tree'
         required: true
         default: 'https://github.com/nepntt9/android_device_samsung_m14x.git'
       DEVICE_TREE_BRANCH:
-        description: 'Device Branch'  
+        description: 'Branch'
         required: true
         default: 'android-12.1'
       DEVICE_PATH:
-        description: 'Device Path'
+        description: 'Path'
         required: true
         default: 'device/samsung/m14x'
       DEVICE_NAME:
@@ -34,7 +30,7 @@ on:
         required: true
         default: 'm14x'
       BUILD_TARGET:
-        description: 'Build Target'
+        description: 'Target'
         required: true
         default: 'recovery'
         type: choice
@@ -45,35 +41,40 @@ on:
 
 jobs:
   build:
-    name: OFRP Stable by ${{ github.actor }}
+    name: OFRP by ${{ github.actor }}
     runs-on: ubuntu-22.04
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      contents: write
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-              
-    - name: Clean Workspace
+
+    - name: Cleanup
       uses: rokibhasansagar/slimhub_actions@main
 
-    - name: Add Swap (24GB)
+    - name: 24GB Swap
       uses: pierotofy/set-swap-space@master
       with:
         swap-size-gb: 24
-      
-    - name: Setup Build Env
+
+    - name: Install Repo + Deps **FIX**
       run: |
-        sudo apt update -qq
-        sudo apt install -y aria2 git-lfs bc bison flex libssl-dev make ccache
+        # Install repo tool FIRST
+        mkdir -p ~/.bin
+        PATH="${HOME}/.bin:${PATH}"
+        wget -O ~/.bin/repo https://storage.googleapis.com/git-repo-downloads/repo [web:30]
+        chmod a+rx ~/.bin/repo
+        export PATH="${HOME}/.bin:${PATH}"
         
-    - name: Sync OrangeFox Stable
+        sudo apt update -qq
+        sudo apt install -y aria2 git-lfs bc bison flex libssl-dev make ccache python3
+        
+    - name: Sync OrangeFox **FIX**
       run: |
         mkdir -p ~/OrangeFox
         cd ~/OrangeFox
         git clone https://gitlab.com/OrangeFox/sync.git -b master --depth=1
         cd sync
+        # Verify repo works
+        repo --version
         ./orangefox_sync.sh --branch ${{ inputs.MANIFEST_BRANCH }} --path ~/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}
 
     - name: Clone Device Tree
@@ -83,36 +84,31 @@ jobs:
         cd ${{ inputs.DEVICE_PATH }}
         echo "COMMIT_ID=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
-    - name: Build OrangeFox
+    - name: Build **FIX**
       run: |
         cd ~/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}
         export ALLOW_MISSING_DEPENDENCIES=true
         export LC_ALL=C
         source build/envsetup.sh
-        lunch twrp_${{ inputs.DEVICE_NAME }}-eng
-        make clean && mka ${{ inputs.BUILD_TARGET }}image -j$(nproc --all)
+        lunch twrp_${{ inputs.DEVICE_NAME }}-eng || lunch omni_${{ inputs.DEVICE_NAME }}-eng
+        make clean || true
+        mka ${{ inputs.BUILD_TARGET }}image -j$(nproc --all) || mka ${{ inputs.BUILD_TARGET }}image -j4
 
-    - name: Set Properties
+    - name: Outputs
       run: |
         echo "BUILD_DATE=$(date +%Y%m%d-%H%M)" >> $GITHUB_ENV
-        cd ~/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}
-        echo "DEVICE_TREE_URL=${{ inputs.DEVICE_TREE }}/${{ inputs.DEVICE_TREE_BRANCH }}" >> $GITHUB_ENV
+        ls -la ~/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/*.img
 
-    - name: Upload Release
+    - name: Release
       uses: softprops/action-gh-release@v2
       with:
         files: |
           ~/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/*.img
           ~/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/*.zip
-        name: OFRP ${{ inputs.MANIFEST_BRANCH }} - ${{ inputs.DEVICE_NAME }} (${{ env.BUILD_DATE }})
-        tag_name: v${{ inputs.MANIFEST_BRANCH }}-${{ github.run_id }}
+        name: OFRP ${{ inputs.MANIFEST_BRANCH }} - m14x (${{ env.BUILD_DATE }})
+        tag_name: v${{ github.run_id }}
         body: |
-          ## OrangeFox Stable Build
-          
-          **Build**: fox_${{ inputs.MANIFEST_BRANCH }} [attached_file:1]
-          **Device**: [${{ inputs.DEVICE_NAME }}](${{ env.DEVICE_TREE_URL }})
-          **Commit**: [`${{ env.COMMIT_ID }}`](${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }})
-          
-          **Assets**:
-          - OrangeFox-R11.3_*-${{ inputs.DEVICE_NAME }}.img
-          - OrangeFox-R11.3_*-${{ inputs.DEVICE_NAME }}.zip [web:30]
+          ## OrangeFox Recovery [attached_file:1]
+          Build: fox_${{ inputs.MANIFEST_BRANCH }}
+          Device: [m14x](${{ inputs.DEVICE_TREE }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
+          Commit: `${{ env.COMMIT_ID }}` [attached_file:2]
