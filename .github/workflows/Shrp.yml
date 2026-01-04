@@ -1,0 +1,123 @@
+name: SHRP - Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      MANIFEST_BRANCH:
+        description: 'SHRP Manifest Branch'
+        required: true
+        default: 'android-13.0'
+        type: choice
+        options:
+        - android-13.0
+        - android-14.0
+      DEVICE_TREE:
+        description: 'SHRP Device Tree'
+        required: true
+        default: 'https://github.com/nepntt9/0android_device_samsung_m14x'
+      DEVICE_TREE_BRANCH:
+        description: 'SHRP Device Tree Branch'
+        required: true
+        default: 'android-12.1'
+      DEVICE_PATH:
+        description: 'Specify your Device Path'
+        required: true
+        default: 'device/samsung/m14x'
+      DEVICE_NAME:
+        description: 'Specify your Device Codename'
+        required: true
+        default: 'm14x'
+      BUILD_TARGET:
+        description: 'Specify your Build Target'
+        required: true
+        default: 'recovery'
+        type: choice
+        options:
+        - boot
+        - recovery
+        - vendorboot
+
+jobs:
+  build:
+    name: Build SHRP by ${{ github.actor }}
+    runs-on: ubuntu-22.04
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+    - uses: rokibhasansagar/slimhub_actions@main
+    - uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 32
+    - run: |
+        sudo apt update
+        sudo apt install -y aria2 git bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop maven openjdk-11-jdk pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 python3-pip repo
+        pip3 install requests lz4
+    - run: |
+        mkdir -p ${GITHUB_WORKSPACE}/SHRP
+        cd ${GITHUB_WORKSPACE}/SHRP
+        git config --global user.name "${{ github.actor }}"
+        git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+        repo init -u https://github.com/SHRP/android_manifest -b ${{ inputs.MANIFEST_BRANCH }} --depth=1
+        repo sync -c --force-sync --no-clone-bundle --no-tags -j$(nproc --all)
+    - run: |
+        cd ${GITHUB_WORKSPACE}/SHRP
+        git clone ${{ inputs.DEVICE_TREE }} -b ${{ inputs.DEVICE_TREE_BRANCH }} ./${{ inputs.DEVICE_PATH }}
+        cd ${{ inputs.DEVICE_PATH }}
+        echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+    - run: |
+        cd ${GITHUB_WORKSPACE}/SHRP/${{ inputs.DEVICE_PATH }}
+        if ! grep -q "SHRP_DEVICE" BoardConfig.mk 2>/dev/null; then
+          echo "
+SHRP_DEVICE := true
+SHRP_DND := true
+SHRP_DUMPLOG := true
+SHRP_HEALTH := true
+SHRP_OTA := true
+SHRP_POT := true
+SHRP_REC := true
+SHRP_AB := false
+SHRP_CUSTOM_VOLUME := true" >> BoardConfig.mk
+        fi
+    - run: |
+        cd ${GITHUB_WORKSPACE}/SHRP
+        export KBUILD_BUILD_USER="${{ github.actor }}"
+        export KBUILD_BUILD_HOST="${{ github.run_id }}"
+        export ALLOW_MISSING_DEPENDENCIES=true
+        source build/envsetup.sh
+        lunch shrp_${{ inputs.DEVICE_NAME }}-eng || lunch twrp_${{ inputs.DEVICE_NAME }}-eng
+        make clean
+        mka adbd ${{ inputs.BUILD_TARGET }}image -j$(nproc --all)
+    - run: |
+        echo "BUILD_DATE=$(TZ=Asia/Manila date +%Y%m%d-%H%M)" >> $GITHUB_ENV
+        cd ${GITHUB_WORKSPACE}/SHRP
+        DEVICE_TREE_URL="${{ inputs.DEVICE_TREE }}"
+        if [[ "${DEVICE_TREE_URL}" == *.git ]]; then
+          DEVICE_TREE_URL="${DEVICE_TREE_URL%.git}"
+        fi
+        echo "DEVICE_TREE_URL=${DEVICE_TREE_URL}" >> $GITHUB_ENV
+    - uses: actions/upload-artifact@v4
+      with:
+        name: SHRP-${{ inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}
+        path: |
+          SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/*.img
+          SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/*.zip
+    - uses: softprops/action-gh-release@v2
+      if: success()
+      with:
+        files: |
+          SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/SHRP*.img
+          SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/SkyHawk*.img
+          SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/*.zip
+        name: SHRP Recovery ${{ inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
+        tag_name: ${{ github.run_id }}-${{ inputs.DEVICE_NAME }}
+        body: |
+          ## SkyHawk Recovery Project (SHRP) - Unofficial Build
+          Build: ${{ inputs.MANIFEST_BRANCH }}
+          Device Tree: [${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }}](${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
+          Commit: [${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }}]
+          Build Date: ${{ env.BUILD_DATE }}
+          Flash: fastboot flash ${{ inputs.BUILD_TARGET }} SHRP_*.img
+          Build Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
