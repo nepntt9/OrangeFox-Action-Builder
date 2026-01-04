@@ -71,15 +71,15 @@ jobs:
         cd ${GITHUB_WORKSPACE}/SHRP/${{ inputs.DEVICE_PATH }}
         if ! grep -q "SHRP_DEVICE" BoardConfig.mk 2>/dev/null; then
           echo "
-SHRP_DEVICE := true
-SHRP_DND := true
-SHRP_DUMPLOG := true
-SHRP_HEALTH := true
-SHRP_OTA := true
-SHRP_POT := true
-SHRP_REC := true
-SHRP_AB := false
-SHRP_CUSTOM_VOLUME := true" >> BoardConfig.mk
+          SHRP_DEVICE := true
+          SHRP_DND := true
+          SHRP_DUMPLOG := true
+          SHRP_HEALTH := true
+          SHRP_OTA := true
+          SHRP_POT := true
+          SHRP_REC := true
+          SHRP_AB := false
+          SHRP_CUSTOM_VOLUME := true" >> BoardConfig.mk
         fi
     - run: |
         cd ${GITHUB_WORKSPACE}/SHRP
