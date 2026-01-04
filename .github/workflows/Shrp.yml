@@ -53,15 +53,16 @@ jobs:
         swap-size-gb: 32
     - run: |
         sudo apt update
-        sudo apt install -y aria2 git bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop maven openjdk-11-jdk pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 python3-pip repo
+        sudo apt install -y aria2 git bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop maven openjdk-11-jdk pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 python3-pip repo
         pip3 install requests lz4
+        git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
     - run: |
         mkdir -p ${GITHUB_WORKSPACE}/SHRP
         cd ${GITHUB_WORKSPACE}/SHRP
         git config --global user.name "${{ github.actor }}"
         git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-        repo init -u https://github.com/SHRP/android_manifest -b ${{ inputs.MANIFEST_BRANCH }} --depth=1
-        repo sync -c --force-sync --no-clone-bundle --no-tags -j$(nproc --all)
+        repo init -u https://github.com/SHRP/android_manifest -b ${{ inputs.MANIFEST_BRANCH }} --depth=1 --no-repo-verify
+        repo sync -c --force-sync --no-clone-bundle --no-tags -j$(nproc --all) --no-repo-verify
     - run: |
         cd ${GITHUB_WORKSPACE}/SHRP
         git clone ${{ inputs.DEVICE_TREE }} -b ${{ inputs.DEVICE_TREE_BRANCH }} ./${{ inputs.DEVICE_PATH }}
@@ -71,15 +72,15 @@ jobs:
         cd ${GITHUB_WORKSPACE}/SHRP/${{ inputs.DEVICE_PATH }}
         if ! grep -q "SHRP_DEVICE" BoardConfig.mk 2>/dev/null; then
           echo "
-          SHRP_DEVICE := true
-          SHRP_DND := true
-          SHRP_DUMPLOG := true
-          SHRP_HEALTH := true
-          SHRP_OTA := true
-          SHRP_POT := true
-          SHRP_REC := true
-          SHRP_AB := false
-          SHRP_CUSTOM_VOLUME := true" >> BoardConfig.mk
+SHRP_DEVICE := true
+SHRP_DND := true
+SHRP_DUMPLOG := true
+SHRP_HEALTH := true
+SHRP_OTA := true
+SHRP_POT := true
+SHRP_REC := true
+SHRP_AB := false
+SHRP_CUSTOM_VOLUME := true" >> BoardConfig.mk
         fi
     - run: |
         cd ${GITHUB_WORKSPACE}/SHRP
@@ -111,3 +112,11 @@ jobs:
           SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/SHRP*.img
           SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/SkyHawk*.img
           SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/*.zip
+        name: SHRP Recovery ${{ inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
+        tag_name: ${{ github.run_id }}-${{ inputs.DEVICE_NAME }}
+        body: |
+          Build: ${{ inputs.MANIFEST_BRANCH }}
+          Device Tree: [${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }}]
+          Commit: [${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }}]
+          Build Date: ${{ env.BUILD_DATE }}
+          Flash: fastboot flash ${{ inputs.BUILD_TARGET }} SHRP_*.img
