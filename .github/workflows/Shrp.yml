@@ -111,13 +111,3 @@ SHRP_CUSTOM_VOLUME := true" >> BoardConfig.mk
           SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/SHRP*.img
           SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/SkyHawk*.img
           SHRP/out/target/product/${{ inputs.DEVICE_NAME }}/*.zip
-        name: SHRP Recovery ${{ inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
-        tag_name: ${{ github.run_id }}-${{ inputs.DEVICE_NAME }}
-        body: |
-          ## SkyHawk Recovery Project (SHRP) - Unofficial Build
-          Build: ${{ inputs.MANIFEST_BRANCH }}
-          Device Tree: [${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }}](${{ env.DEVICE_TREE_URL }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
-          Commit: [${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }}]
-          Build Date: ${{ env.BUILD_DATE }}
-          Flash: fastboot flash ${{ inputs.BUILD_TARGET }} SHRP_*.img
-          Build Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
